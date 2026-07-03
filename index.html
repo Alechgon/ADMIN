@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Stock Bodega Rancagua — SOSER Mantención</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --asphalt:#1c2128;--asphalt-2:#262d37;--steel:#3d5a80;--paper:#f4f1ea;--paper-2:#ffffff;
+    --orange:#ff6a13;--orange-dark:#d9560a;--green:#2d9d63;--red:#d64545;--amber:#c77a1a;
+    --grey-line:#d8d3c6;--ink:#1c2128;--ink-soft:#5a6270;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);min-height:100vh;padding-bottom:50px;}
+  .topbar{background:var(--asphalt);color:var(--paper);padding:18px 20px 16px;position:sticky;top:0;z-index:50;box-shadow:0 2px 10px rgba(0,0,0,.25);}
+  .topbar-inner{max-width:860px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-tag{background:var(--orange);color:var(--asphalt);font-weight:800;font-size:11px;letter-spacing:.08em;padding:4px 8px;border-radius:4px;transform:rotate(-2deg);}
+  .brand h1{font-size:16px;margin:0;font-weight:700;}
+  .brand p{margin:1px 0 0;font-size:11.5px;color:#aab1bd;}
+  .loc-pill{background:#2d9d63;color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;letter-spacing:.03em;}
+  .tabs{display:flex;gap:6px;}
+  .tab-btn{background:transparent;border:1.5px solid #444c58;color:#c4cad4;padding:7px 12px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;transition:.15s;}
+  .tab-btn.active{background:var(--orange);border-color:var(--orange);color:var(--asphalt);}
+  .wrap{max-width:860px;margin:0 auto;padding:18px 16px 0;}
+  .card{background:var(--paper-2);border:1px solid var(--grey-line);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(28,33,40,.05);}
+  .step-label{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+  .step-num{width:22px;height:22px;border-radius:50%;background:var(--asphalt);color:var(--paper);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .step-label h2{font-size:13.5px;margin:0;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700;}
+  .search-box{position:relative;}
+  .search-box input{width:100%;padding:13px 14px;border:2px solid var(--grey-line);border-radius:10px;font-size:15px;background:var(--paper);color:var(--ink);}
+  .search-box input:focus{outline:none;border-color:var(--orange);background:var(--paper-2);}
+  .results{margin-top:8px;border:1px solid var(--grey-line);border-radius:10px;overflow:hidden;max-height:320px;overflow-y:auto;display:none;}
+  .results.show{display:block;}
+  .result-item{padding:11px 13px;border-bottom:1px solid var(--grey-line);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .result-item:last-child{border-bottom:none;}
+  .result-item:hover{background:#fff1e6;}
+  .result-item .name{font-size:13.5px;font-weight:600;}
+  .result-item .meta{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+  .result-item .qty{font-family:'Courier New',monospace;font-weight:700;font-size:13px;background:var(--paper);border:1px solid var(--grey-line);border-radius:6px;padding:3px 8px;white-space:nowrap;flex-shrink:0;}
+  .result-item.already .qty{background:#e3f4ea;border-color:var(--green);color:var(--green);}
+  .no-results{padding:14px;text-align:center;color:var(--ink-soft);font-size:13px;}
+  .no-results button{margin-top:10px;}
+  .selected-panel{margin-top:14px;border:2px solid var(--asphalt);border-radius:12px;padding:14px;background:#fffaf3;display:none;}
+  .selected-panel.show{display:block;}
+  .selected-panel.extra{border-color:var(--steel);background:#f5f8fc;}
+  .selected-panel .art-name{font-weight:700;font-size:15px;margin-bottom:2px;}
+  .selected-panel .art-meta{font-size:11.5px;color:var(--ink-soft);margin-bottom:12px;}
+  .panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+  .field{background:var(--paper);border-radius:10px;padding:10px 12px;border:1px solid var(--grey-line);}
+  .field label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);font-weight:700;margin-bottom:5px;}
+  .field .disp-value{font-family:'Courier New',monospace;font-size:20px;font-weight:800;}
+  .field input{width:100%;border:none;background:transparent;font-family:'Courier New',monospace;font-size:20px;font-weight:800;color:var(--steel);padding:0;}
+  .field input:focus{outline:none;}
+  .field input.text-in{font-family:inherit;font-size:15px;font-weight:600;color:var(--ink);}
+  .panel-actions{display:flex;gap:8px;}
+  .btn{border:none;border-radius:9px;padding:11px 16px;font-weight:700;font-size:13.5px;cursor:pointer;transition:.15s;}
+  .btn-primary{background:var(--orange);color:var(--asphalt);flex:1;}
+  .btn-primary:hover{background:var(--orange-dark);}
+  .btn-steel{background:var(--steel);color:#fff;}
+  .btn-steel:hover{background:#2f4763;}
+  .btn-secondary{background:transparent;border:1.5px solid var(--grey-line);color:var(--ink-soft);}
+  .btn-secondary:hover{border-color:var(--ink-soft);}
+  .btn-block{width:100%;margin-top:10px;}
+  .hallazgo-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--grey-line);gap:10px;}
+  .hallazgo-row:last-child{border-bottom:none;}
+  .hallazgo-info{flex:1;min-width:0;}
+  .hallazgo-info .nm{font-weight:600;font-size:13.5px;}
+  .hallazgo-info .mt{font-size:11px;color:var(--ink-soft);}
+  .hallazgo-nums{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  .pill{font-family:'Courier New',monospace;font-weight:700;font-size:12.5px;padding:4px 9px;border-radius:7px;white-space:nowrap;}
+  .pill-disp{background:#eceff3;color:var(--ink-soft);}
+  .pill-found{background:#eaf1fb;color:var(--steel);}
+  .pill-diff-ok{background:#e3f4ea;color:var(--green);}
+  .pill-diff-bad{background:#fbe7e7;color:var(--red);}
+  .pill-extra{background:#e8ecf5;color:var(--steel);}
+  .tag-extra{font-size:9.5px;font-weight:700;background:var(--steel);color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px;vertical-align:middle;}
+  .tag-crit{font-size:9.5px;font-weight:700;background:var(--red);color:#fff;padding:2px 6px;border-radius:5px;margin-left:6px;vertical-align:middle;}
+  .del-btn{background:none;border:none;color:#b8bdc6;font-size:18px;cursor:pointer;line-height:1;padding:2px 4px;}
+  .del-btn:hover{color:var(--red);}
+  .empty-state{text-align:center;padding:26px 10px;color:var(--ink-soft);font-size:13.5px;}
+  .summary-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px;}
+  .sum-box{background:var(--asphalt);color:var(--paper);border-radius:12px;padding:12px 14px;text-align:center;}
+  .sum-box .n{font-family:'Courier New',monospace;font-size:22px;font-weight:800;}
+  .sum-box .l{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#aab1bd;margin-top:2px;}
+  .sum-box.warn{background:var(--red);}.sum-box.warn .l{color:#ffd9d9;}
+  .sum-box.ok{background:var(--green);}.sum-box.ok .l{color:#d6f3e3;}
+  .sum-box.steel{background:var(--steel);}.sum-box.steel .l{color:#cdd9e8;}
+  .sum-box.amber{background:var(--amber);}.sum-box.amber .l{color:#ffe8cc;}
+  table.comp{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.comp th{text-align:left;padding:8px;border-bottom:2px solid var(--asphalt);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);}
+  table.comp td{padding:8px;border-bottom:1px solid var(--grey-line);}
+  table.comp tr.missing{background:#fdf2f2;}
+  table.comp tr.extra{background:#f0f6fc;}
+  .badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap;}
+  .badge-ok{background:#e3f4ea;color:var(--green);}
+  .badge-missing{background:#fbe7e7;color:var(--red);}
+  .badge-over{background:#fff2e0;color:var(--orange-dark);}
+  .badge-extra{background:#eaf1fb;color:var(--steel);}
+  .badge-pending{background:#f1efe8;color:var(--ink-soft);}
+  .filter-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+  .filter-chip{border:1.5px solid var(--grey-line);background:var(--paper);border-radius:20px;padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer;}
+  .filter-chip.active{background:var(--asphalt);color:var(--paper);border-color:var(--asphalt);}
+  .export-bar{display:flex;gap:10px;margin-top:14px;}
+  .section-title{font-size:13.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:0 0 12px;}
+  .reset-link{font-size:11.5px;color:var(--ink-soft);text-align:center;margin-top:12px;cursor:pointer;text-decoration:underline;}
+  ::-webkit-scrollbar{width:6px;}::-webkit-scrollbar-thumb{background:var(--grey-line);border-radius:3px;}
+  .hidden{display:none !important;}
+  @media(max-width:480px){.panel-grid{grid-template-columns:1fr;}.brand p{display:none;}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-tag">SOSER</span>
+      <div>
+        <h1>Control de Stock Bodega</h1>
+        <p>Cotejo sistema vs. inventario físico</p>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="loc-pill">📍 RANCAGUA</span>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="buscar" onclick="switchTab('buscar')">Buscar</button>
+        <button class="tab-btn" data-tab="comparar" onclick="switchTab('comparar')">Comparación</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ===================== TAB: BUSCAR ===================== -->
+  <div id="tab-buscar">
+
+    <div class="card">
+      <div class="step-label"><div class="step-num">1</div><h2>Busca el artículo en el stock de Rancagua</h2></div>
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Escribe el nombre del artículo..." autocomplete="off">
+        <div class="results" id="resultsBox"></div>
+      </div>
+
+      <!-- panel articulo del stock -->
+      <div class="selected-panel" id="selectedPanel">
+        <div class="art-name" id="selArtName"></div>
+        <div class="art-meta" id="selArtMeta"></div>
+        <div class="panel-grid">
+          <div class="field">
+            <label>Stock según sistema</label>
+            <div class="disp-value" id="selDespachado">0</div>
+          </div>
+          <div class="field">
+            <label>Contado físicamente</label>
+            <input type="number" id="selEncontrado" min="0" placeholder="0" inputmode="numeric">
+          </div>
+        </div>
+        <div class="panel-actions">
+          <button class="btn btn-primary" onclick="guardarHallazgo()">Guardar conteo</button>
+          <button class="btn btn-secondary" onclick="cerrarPanel()">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- panel material extra -->
+      <div class="selected-panel extra" id="extraPanel">
+        <div class="art-name">Material extra (no está en el sistema)</div>
+        <div class="art-meta">Se registrará como hallazgo adicional del inventario físico.</div>
+        <div class="panel-grid">
+          <div class="field">
+            <label>Nombre del artículo</label>
+            <input type="text" id="extraNombre" class="text-in" placeholder="Ej: LLAVE ALLEN 5MM">
+          </div>
+          <div class="field">
+            <label>Cantidad contada</label>
+            <input type="number" id="extraCantidad" min="0" placeholder="0" inputmode="numeric">
+          </div>
+        </div>
+        <div class="panel-actions">
+          <button class="btn btn-steel" style="flex:1" onclick="guardarExtra()">Guardar material extra</button>
+          <button class="btn btn-secondary" onclick="cerrarPanel()">Cancelar</button>
+        </div>
+      </div>
+
+      <button class="btn btn-secondary btn-block" id="btnAgregarExtra" onclick="abrirExtra()">+ Agregar material que no está en la lista</button>
+    </div>
+
+    <div class="card">
+      <div class="step-label"><div class="step-num">2</div><h2>Conteos registrados <span id="hallazgosCount" style="color:var(--ink-soft);font-weight:500;text-transform:none;letter-spacing:0;"></span></h2></div>
+      <div id="hallazgosList"><div class="empty-state">Aún no registras conteos. Busca un artículo para empezar.</div></div>
+    </div>
+
+  </div>
+
+  <!-- ===================== TAB: COMPARAR ===================== -->
+  <div id="tab-comparar" class="hidden">
+    <div class="summary-strip" id="summaryStrip"></div>
+    <div class="card">
+      <p class="section-title">Stock sistema vs. inventario físico — Bodega Rancagua</p>
+      <div class="filter-row" id="compFilterTipo"></div>
+      <div class="filter-row" id="compFilterEstado"></div>
+      <div style="overflow-x:auto;">
+        <table class="comp" id="compTable">
+          <thead><tr>
+            <th>Artículo</th><th>Cód</th><th>Tipo</th><th>Sistema</th><th>Físico</th><th>Dif</th><th>Estado</th>
+          </tr></thead>
+          <tbody id="compTableBody"></tbody>
+        </table>
+      </div>
+      <div class="export-bar">
+        <button class="btn btn-primary" style="flex:1" onclick="exportarExcel()">⬇ Descargar Excel (Resumen + Detalle)</button>
+      </div>
+      <div class="reset-link" onclick="resetearTodo()">Borrar todos los conteos y empezar de nuevo</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const PRODUCTS = [{"articulo": "A01 LLAVE BOLA 1/2 JARDIN", "cod": "8926_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 7}, {"articulo": "A02 LLAVE DE COMBINACION LAVAPLATO", "cod": "8927_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 40}, {"articulo": "A05 LLAVE MONOMANDO LAVAPLATO", "cod": "8930_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 40}, {"articulo": "A11 LLAVE DE PASO BOLA HI HI 1/2", "cod": "8936_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 12}, {"articulo": "A14 FLEXIBLE AGUA 1/2 HI HE 40 CM", "cod": "8939_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 0}, {"articulo": "A16 FLEXIBLE MONOMONADO 1/2 40CM", "cod": "8941_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 4}, {"articulo": "A18 FLEXIBLE AGUA 1/2 HI HI 25 CM", "cod": "8943_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 0}, {"articulo": "A21 CAPUCHON GOMA 50 A 40 LAVAFONDO", "cod": "8946_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 3}, {"articulo": "A22 CAPUCHON GOMA 40 A 32 LAVAMANO", "cod": "8947_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 7}, {"articulo": "C06 SILICONA ALTA TEMPERATURA", "cod": "8954_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 7}, {"articulo": "C08 TEFLON AGUA", "cod": "8956_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 16}, {"articulo": "DESAGUE UTILITY", "cod": "9454_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 40}, {"articulo": "G01 CODO BRONCE 1/2 SO HE", "cod": "9015_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 3}, {"articulo": "G02 CODO BRONCE 1/2 SO SO", "cod": "9016_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 4}, {"articulo": "G03 CODO BRONCE 1/2 SO HI", "cod": "9017_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 24}, {"articulo": "G04 CODO BRONCE SO-SO 3/4 X 1/2", "cod": "9018_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 3}, {"articulo": "G06 COPLA BRONCE 1/2 HE HE (NIPLE)", "cod": "9020_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 1}, {"articulo": "G07 COPLA BRONCE 1/2 SO SO", "cod": "9021_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 18}, {"articulo": "G08 COPLA BORNCE SO-SO 3/8", "cod": "9022_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 4}, {"articulo": "G09 TEE BRONCE 1/2 SO", "cod": "9023_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 15}, {"articulo": "G11 TEE BRONCE SO-SO-SO 3/4X3/4X1/2", "cod": "9025_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 3}, {"articulo": "G12 TERMINAL BRONCE SO HE 1/2", "cod": "9026_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 0}, {"articulo": "G23 LLAVE DE PASO GAS HI HE RECTA 1/2", "cod": "9037_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 8}, {"articulo": "G25 PILAS ALCALINAS D", "cod": "9039_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 48}, {"articulo": "G28 UNION AMERICANA 1/2", "cod": "9042_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 1}, {"articulo": "S01 SIFON RECTO LAVAMANO", "cod": "9075_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 1}, {"articulo": "S06 DESAGUE DE LAVAMANOS", "cod": "9080_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 16}, {"articulo": "S10 COPLA PVC 40 MM", "cod": "9084_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 2}, {"articulo": "S11 COPLA PVC HI 1 1/2", "cod": "9085_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 20}, {"articulo": "S12 TAPA GORRO PVC 40 MM", "cod": "9086_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 1}, {"articulo": "S13 TAPAGORRO PVC 20", "cod": "9087_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 2}, {"articulo": "S14 TAPA TORNILLO PVC HE 1/2", "cod": "9088_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 2}, {"articulo": "S16 TEE PVC 40MM", "cod": "9090_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 1}, {"articulo": "S17 REDUCCION PVC 50X40", "cod": "9091_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 9}, {"articulo": "S18 TERMINAL PVC 20X12", "cod": "9092_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 1}, {"articulo": "S23 FLAPPER", "cod": "9097_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 2}, {"articulo": "S26 MANILLA PARA ESTANQUE WC", "cod": "9100_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 13}, {"articulo": "SIFON 1 1/2'' SALIDA RECTA", "cod": "9727_5", "med": "un", "tipo": "7Gasfiteria", "clasif": "33Gasfitería", "stockCrit": 0, "saldo": 40}, {"articulo": "ESCALERA", "cod": "7189_5", "med": "un", "tipo": "8Otros", "clasif": "40Activo Fijo", "stockCrit": 0, "saldo": 0}, {"articulo": "BITACORA EQUIPOS DE CALOR", "cod": "7939_5", "med": "un", "tipo": "8Otros", "clasif": "49Impresos", "stockCrit": 0, "saldo": 11}, {"articulo": "BITACORA MANTENIMIENTO ESTAB. 2022", "cod": "8324_5", "med": "un", "tipo": "8Otros", "clasif": "54Otros", "stockCrit": 0, "saldo": 46}, {"articulo": "DILUYENTE", "cod": "8862_5", "med": "un", "tipo": "8Otros", "clasif": "54Otros", "stockCrit": 0, "saldo": 1}, {"articulo": "BROCHA 2\"", "cod": "8819_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 19}, {"articulo": "C10 ADHESIVO PVC", "cod": "8958_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 0}, {"articulo": "C12 DISCO DE CORTE 4 1/2", "cod": "8960_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 1}, {"articulo": "C19 HOJA DE SIERRA 12''", "cod": "8967_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 1}, {"articulo": "C20 BROCHA 3\"", "cod": "8968_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 1}, {"articulo": "C22 BROCHA 1''", "cod": "8970_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 0}, {"articulo": "C23 RODILLO 18CM", "cod": "8971_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 3}, {"articulo": "C26 GRATA COPA ESMERIL (CHASCON)", "cod": "8974_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 4}, {"articulo": "F02 TORNILLO ROSCA FINA 6X1/4", "cod": "9005_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 0}, {"articulo": "F03 TARUGO PLASTICO 6MM", "cod": "9006_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 330}, {"articulo": "F04 TARUGO PLASTICO PALOMA", "cod": "9007_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 80}, {"articulo": "F05 CANCAMO ABIERTO", "cod": "9008_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 40}, {"articulo": "F08 BISAGRA RECTA 35MM PCP", "cod": "9011_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 41}, {"articulo": "M05 MALLA MOSQUITERA FIBRA (1 rollo= 3000 Cm)", "cod": "9054_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 7}, {"articulo": "M06 BISAGRA PUERTA 2.5 MM", "cod": "9055_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 14}, {"articulo": "M08 PESTILLO SIMPLE", "cod": "9057_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 14}, {"articulo": "P06 SPRAY NEGRO ALTA TEMPERATURA", "cod": "9066_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 30}, {"articulo": "P07 SPRAY ALUMINIO ALTA TEMPERATURA", "cod": "9067_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 30}, {"articulo": "P08 SPRAY PINTURA AMARILLO", "cod": "9068_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 30}, {"articulo": "RODILLO ESPUMA 9 CM", "cod": "9517_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 1}, {"articulo": "TORNILLO ROSCA FINA 6X 1 1/4", "cod": "9209_5", "med": "un", "tipo": "13Material Menor", "clasif": "56Material Menor", "stockCrit": 0, "saldo": 100}, {"articulo": "C09 HUINCHA AISLADORA", "cod": "8957_5", "med": "un", "tipo": "14Electricidad", "clasif": "57Electricidad", "stockCrit": 0, "saldo": 5}, {"articulo": "E02 EXTRACTORES DE AIRE 6", "cod": "8981_5", "med": "un", "tipo": "14Electricidad", "clasif": "57Electricidad", "stockCrit": 0, "saldo": 1}, {"articulo": "E08 CANALETA PVC ( 1 = 200 Cm)", "cod": "8987_5", "med": "un", "tipo": "14Electricidad", "clasif": "57Electricidad", "stockCrit": 0, "saldo": 3099}, {"articulo": "E11 ENCHUFE VOLANTE MACHO", "cod": "8990_5", "med": "un", "tipo": "14Electricidad", "clasif": "57Electricidad", "stockCrit": 0, "saldo": 3}, {"articulo": "E12 ENCHUFE VOLANTE HEMBRA", "cod": "8991_5", "med": "un", "tipo": "14Electricidad", "clasif": "57Electricidad", "stockCrit": 0, "saldo": 10}, {"articulo": "E15 INTERRUPTOR SIMPLE EMBUTIDO", "cod": "8994_5", "med": "un", "tipo": "14Electricidad", "clasif": "57Electricidad", "stockCrit": 0, "saldo": 11}, {"articulo": "E16 INTERRUPTOR SIMPLE SOBRE PUESTO", "cod": "8995_5", "med": "un", "tipo": "14Electricidad", "clasif": "57Electricidad", "stockCrit": 0, "saldo": 2}, {"articulo": "E17 INTERRUPTOR DOBLE EMBUTIDO", "cod": "8996_5", "med": "un", "tipo": "14Electricidad", "clasif": "57Electricidad", "stockCrit": 0, "saldo": 5}, {"articulo": "E18 INTERRUPTOR DOBLE SOBRE PUESTO", "cod": "8997_5", "med": "un", "tipo": "14Electricidad", "clasif": "57Electricidad", "stockCrit": 0, "saldo": 1}, {"articulo": "E19 INTERRUPTOR TRIPLE EMBUTIDO", "cod": "8998_5", "med": "un", "tipo": "14Electricidad", "clasif": "57Electricidad", "stockCrit": 0, "saldo": 12}, {"articulo": "E22 PANEL LED (REDONDO/CUADRADO)", "cod": "9001_5", "med": "un", "tipo": "14Electricidad", "clasif": "57Electricidad", "stockCrit": 0, "saldo": 50}, {"articulo": "E24 TUBO LED 18W 120cm.", "cod": "9003_5", "med": "un", "tipo": "14Electricidad", "clasif": "57Electricidad", "stockCrit": 0, "saldo": 100}];
+PRODUCTS.forEach((p,i)=>{ p._i=i; });
+const TIPOS = [...new Set(PRODUCTS.map(p=>p.tipo))].sort();
+const STORAGE_KEY = 'soser_stock_rancagua_v1';
+
+let estado = { hallazgos:{} };
+// key: 'S||articulo' (stock sistema)  o  'E||articulo' (extra)
+let seleccion = null;
+
+// ---------- persistencia (localStorage para GitHub) ----------
+function cargarEstado(){
+  try{ const raw=localStorage.getItem(STORAGE_KEY); if(raw) estado.hallazgos=(JSON.parse(raw).hallazgos)||{}; }
+  catch(e){ console.warn('Sin datos previos'); }
+}
+function guardarEstado(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({hallazgos:estado.hallazgos})); }
+  catch(e){ console.error('No se pudo guardar', e); }
+}
+function limpiaTipo(t){ return t?t.replace(/^[0-9]+/,''):''; }
+
+// ---------- buscador (delegación, sin bug de comillas) ----------
+const searchInput = document.getElementById('searchInput');
+const resultsBox = document.getElementById('resultsBox');
+
+searchInput.addEventListener('input', ()=>{
+  const q = searchInput.value.trim().toUpperCase();
+  if(q.length===0){ resultsBox.classList.remove('show'); resultsBox.innerHTML=''; return; }
+  const matches = PRODUCTS.filter(p=> p.articulo.toUpperCase().includes(q) || (p.cod&&(''+p.cod).includes(q)));
+  resultsBox.innerHTML='';
+
+  if(matches.length===0){
+    const div=document.createElement('div'); div.className='no-results';
+    div.innerHTML='No hay artículos en el sistema que coincidan.<br>';
+    const b=document.createElement('button'); b.className='btn btn-steel'; b.textContent='+ Agregar como material extra';
+    b.addEventListener('click', ()=>abrirExtra(searchInput.value.trim()));
+    div.appendChild(b); resultsBox.appendChild(div); resultsBox.classList.add('show'); return;
+  }
+
+  matches.slice(0,50).forEach(p=>{
+    const ya = estado.hallazgos['S||'+p.articulo];
+    const item=document.createElement('div'); item.className='result-item'+(ya?' already':'');
+    const left=document.createElement('div');
+    left.innerHTML=`<div class="name"></div><div class="meta">Cód. ${p.cod||'-'} · ${limpiaTipo(p.tipo)}</div>`;
+    left.querySelector('.name').textContent=p.articulo;
+    const right=document.createElement('div'); right.className='qty';
+    right.textContent = ya ? ('Contado: '+ya.encontrado) : (p.saldo+' '+(p.med||'un'));
+    item.appendChild(left); item.appendChild(right);
+    item.addEventListener('click', ()=>elegirArticulo(p));
+    resultsBox.appendChild(item);
+  });
+  resultsBox.classList.add('show');
+});
+
+function elegirArticulo(p){
+  seleccion=p;
+  document.getElementById('extraPanel').classList.remove('show');
+  document.getElementById('selArtName').textContent=p.articulo;
+  const crit = p.stockCrit>0 ? ` · Stock crítico: ${p.stockCrit}` : '';
+  document.getElementById('selArtMeta').textContent=`Cód. ${p.cod||'-'} · Unidad: ${p.med||'un'} · ${limpiaTipo(p.tipo)}${crit}`;
+  document.getElementById('selDespachado').textContent=p.saldo;
+  const ex=estado.hallazgos['S||'+p.articulo];
+  document.getElementById('selEncontrado').value= ex?ex.encontrado:'';
+  document.getElementById('selectedPanel').classList.add('show');
+  resultsBox.classList.remove('show');
+  searchInput.value=p.articulo;
+  document.getElementById('selEncontrado').focus();
+}
+
+function guardarHallazgo(){
+  if(!seleccion) return;
+  const val=document.getElementById('selEncontrado').value;
+  if(val===''){ alert('Ingresa la cantidad contada físicamente.'); return; }
+  const p=seleccion;
+  estado.hallazgos['S||'+p.articulo]={
+    tipo_registro:'stock', articulo:p.articulo, cod:p.cod, med:p.med, tipoArt:p.tipo, stockCrit:p.stockCrit,
+    saldo:p.saldo, encontrado:parseFloat(val)||0, fechaRegistro:new Date().toISOString().slice(0,10)
+  };
+  guardarEstado(); cerrarPanel();
+  searchInput.value=''; resultsBox.classList.remove('show'); searchInput.focus();
+  renderHallazgosList();
+}
+
+// ---------- material extra ----------
+function abrirExtra(prefill){
+  seleccion=null;
+  document.getElementById('selectedPanel').classList.remove('show');
+  resultsBox.classList.remove('show');
+  document.getElementById('extraNombre').value=prefill||'';
+  document.getElementById('extraCantidad').value='';
+  document.getElementById('extraPanel').classList.add('show');
+  document.getElementById(prefill?'extraCantidad':'extraNombre').focus();
+}
+function guardarExtra(){
+  const nombre=document.getElementById('extraNombre').value.trim();
+  const cant=document.getElementById('extraCantidad').value;
+  if(!nombre){ alert('Escribe el nombre del artículo.'); return; }
+  if(cant===''){ alert('Ingresa la cantidad contada.'); return; }
+  estado.hallazgos['E||'+nombre.toUpperCase()]={
+    tipo_registro:'extra', articulo:nombre.toUpperCase(), cod:'', med:'un', tipoArt:'', stockCrit:0,
+    saldo:0, encontrado:parseFloat(cant)||0, fechaRegistro:new Date().toISOString().slice(0,10)
+  };
+  guardarEstado(); cerrarPanel();
+  searchInput.value=''; searchInput.focus();
+  renderHallazgosList();
+}
+function cerrarPanel(){
+  seleccion=null;
+  document.getElementById('selectedPanel').classList.remove('show');
+  document.getElementById('extraPanel').classList.remove('show');
+}
+
+// ---------- lista conteos ----------
+function renderHallazgosList(){
+  const list=document.getElementById('hallazgosList');
+  const count=document.getElementById('hallazgosCount');
+  const items=Object.entries(estado.hallazgos)
+    .sort((a,b)=> (a[1].tipo_registro===b[1].tipo_registro?0:(a[1].tipo_registro==='extra'?1:-1)));
+  count.textContent = items.length?`(${items.length})`:'';
+  if(items.length===0){ list.innerHTML='<div class="empty-state">Aún no registras conteos. Busca un artículo para empezar.</div>'; return; }
+
+  list.innerHTML='';
+  items.forEach(([key,h])=>{
+    const row=document.createElement('div'); row.className='hallazgo-row';
+    const info=document.createElement('div'); info.className='hallazgo-info';
+    const nm=document.createElement('div'); nm.className='nm'; nm.textContent=h.articulo;
+    if(h.tipo_registro==='extra'){ const t=document.createElement('span'); t.className='tag-extra'; t.textContent='EXTRA'; nm.appendChild(t); }
+    const mt=document.createElement('div'); mt.className='mt'; mt.textContent = h.tipo_registro==='extra'?'No estaba en el sistema':('Cód. '+(h.cod||'-'));
+    info.appendChild(nm); info.appendChild(mt);
+    const nums=document.createElement('div'); nums.className='hallazgo-nums';
+    if(h.tipo_registro==='extra'){
+      const pe=document.createElement('span'); pe.className='pill pill-extra'; pe.textContent='Físico '+h.encontrado; nums.appendChild(pe);
+    }else{
+      const diff=h.encontrado-h.saldo;
+      const pd=document.createElement('span'); pd.className='pill pill-disp'; pd.textContent='Sist '+h.saldo;
+      const pf=document.createElement('span'); pf.className='pill pill-found'; pf.textContent='Fís '+h.encontrado;
+      const pr=document.createElement('span'); pr.className='pill '+(diff===0?'pill-diff-ok':'pill-diff-bad'); pr.textContent=diff===0?'✓ OK':(diff>0?'+'+diff:diff);
+      nums.appendChild(pd); nums.appendChild(pf); nums.appendChild(pr);
+    }
+    const del=document.createElement('button'); del.className='del-btn'; del.textContent='×'; del.title='Eliminar';
+    del.addEventListener('click', ()=>{ delete estado.hallazgos[key]; guardarEstado(); renderHallazgosList(); });
+    nums.appendChild(del);
+    row.appendChild(info); row.appendChild(nums); list.appendChild(row);
+  });
+}
+
+// ---------- tabs ----------
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.getElementById('tab-buscar').classList.toggle('hidden', tab!=='buscar');
+  document.getElementById('tab-comparar').classList.toggle('hidden', tab!=='comparar');
+  if(tab==='comparar') renderComparacion();
+}
+
+// ---------- comparación ----------
+let filtroTipoComp='TODOS', filtroEstadoComp='TODOS';
+
+function filasComparacion(){
+  let filas=PRODUCTS.map(p=>{
+    const h=estado.hallazgos['S||'+p.articulo];
+    return { tipo:'stock', articulo:p.articulo, cod:p.cod, tipoArt:p.tipo, stockCrit:p.stockCrit,
+             saldo:p.saldo, encontrado:h?h.encontrado:null, revisado:!!h };
+  });
+  Object.values(estado.hallazgos).filter(h=>h.tipo_registro==='extra').forEach(h=>{
+    filas.push({ tipo:'extra', articulo:h.articulo, cod:'', tipoArt:'', stockCrit:0, saldo:0, encontrado:h.encontrado, revisado:true });
+  });
+  return filas;
+}
+
+function renderComparacion(){
+  const filas=filasComparacion();
+  const revStock=filas.filter(f=>f.tipo==='stock'&&f.revisado);
+  const coinciden=revStock.filter(f=>f.encontrado===f.saldo).length;
+  const faltan=revStock.filter(f=>f.encontrado<f.saldo);
+  const sobran=revStock.filter(f=>f.encontrado>f.saldo);
+  const extras=filas.filter(f=>f.tipo==='extra');
+  const bajoCritico=revStock.filter(f=>f.stockCrit>0 && f.encontrado<f.stockCrit).length;
+  const total=PRODUCTS.length;
+
+  document.getElementById('summaryStrip').innerHTML=`
+    <div class="sum-box"><div class="n">${total}</div><div class="l">En sistema</div></div>
+    <div class="sum-box steel"><div class="n">${revStock.length}</div><div class="l">Contados</div></div>
+    <div class="sum-box ok"><div class="n">${coinciden}</div><div class="l">Coinciden</div></div>
+    <div class="sum-box warn"><div class="n">${faltan.length}</div><div class="l">Bajo sistema</div></div>
+    <div class="sum-box amber"><div class="n">${sobran.length}</div><div class="l">Sobre sistema</div></div>
+    <div class="sum-box steel"><div class="n">${extras.length}</div><div class="l">Extra</div></div>
+  `;
+
+  document.getElementById('compFilterTipo').innerHTML=['TODOS',...TIPOS].map(t=>{
+    const lbl=t==='TODOS'?'Todos los tipos':limpiaTipo(t);
+    return `<div class="filter-chip ${filtroTipoComp===t?'active':''}" data-t="${(''+t).replace(/"/g,'&quot;')}">${lbl}</div>`;
+  }).join('');
+  document.querySelectorAll('#compFilterTipo .filter-chip').forEach(c=>c.addEventListener('click',()=>{filtroTipoComp=c.dataset.t;renderComparacion();}));
+
+  const estados={TODOS:'Todos',PENDIENTE:'Sin contar',OK:'Coinciden',FALTA:'Bajo sistema',SOBRA:'Sobre sistema',EXTRA:'Extras'};
+  document.getElementById('compFilterEstado').innerHTML=Object.keys(estados).map(e=>
+    `<div class="filter-chip ${filtroEstadoComp===e?'active':''}" data-e="${e}">${estados[e]}</div>`).join('');
+  document.querySelectorAll('#compFilterEstado .filter-chip').forEach(c=>c.addEventListener('click',()=>{filtroEstadoComp=c.dataset.e;renderComparacion();}));
+
+  let rows=filas;
+  if(filtroTipoComp!=='TODOS') rows=rows.filter(r=>r.tipoArt===filtroTipoComp);
+  rows=rows.filter(r=>{
+    if(filtroEstadoComp==='TODOS') return true;
+    if(filtroEstadoComp==='PENDIENTE') return r.tipo==='stock'&&!r.revisado;
+    if(filtroEstadoComp==='OK') return r.tipo==='stock'&&r.revisado&&r.encontrado===r.saldo;
+    if(filtroEstadoComp==='FALTA') return r.tipo==='stock'&&r.revisado&&r.encontrado<r.saldo;
+    if(filtroEstadoComp==='SOBRA') return r.tipo==='stock'&&r.revisado&&r.encontrado>r.saldo;
+    if(filtroEstadoComp==='EXTRA') return r.tipo==='extra';
+    return true;
+  });
+
+  const tbody=document.getElementById('compTableBody'); tbody.innerHTML='';
+  if(rows.length===0){ tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--ink-soft);padding:20px;">Sin resultados para este filtro.</td></tr>'; return; }
+
+  rows.forEach(r=>{
+    const tr=document.createElement('tr');
+    let cls='',badge='<span class="badge badge-pending">Sin contar</span>',fis='—',dif='—';
+    if(r.tipo==='extra'){ cls='extra'; badge='<span class="badge badge-extra">Extra</span>'; fis=r.encontrado; dif='+'+r.encontrado; }
+    else if(r.revisado){
+      const d=r.encontrado-r.saldo; fis=r.encontrado; dif=d===0?'0':(d>0?'+'+d:d);
+      if(d===0) badge='<span class="badge badge-ok">Coincide</span>';
+      else if(d<0){ cls='missing'; badge='<span class="badge badge-missing">Falta '+Math.abs(d)+'</span>'; }
+      else badge='<span class="badge badge-over">Sobra '+d+'</span>';
+    }
+    const tdArt=document.createElement('td'); tdArt.textContent=r.articulo;
+    if(r.tipo==='extra'){const s=document.createElement('span');s.className='tag-extra';s.textContent='EXTRA';tdArt.appendChild(s);}
+    if(r.tipo==='stock'&&r.stockCrit>0&&r.revisado&&r.encontrado<r.stockCrit){const s=document.createElement('span');s.className='tag-crit';s.textContent='CRÍTICO';tdArt.appendChild(s);}
+    const tdCod=document.createElement('td'); tdCod.textContent=r.cod||'-';
+    const tdTipo=document.createElement('td'); tdTipo.textContent=limpiaTipo(r.tipoArt)||'—';
+    const tdS=document.createElement('td'); tdS.textContent=r.tipo==='extra'?'—':r.saldo;
+    const tdF=document.createElement('td'); tdF.textContent=fis;
+    const tdDif=document.createElement('td'); tdDif.textContent=dif;
+    const tdB=document.createElement('td'); tdB.innerHTML=badge;
+    tr.className=cls;
+    [tdArt,tdCod,tdTipo,tdS,tdF,tdDif,tdB].forEach(td=>tr.appendChild(td));
+    tbody.appendChild(tr);
+  });
+}
+
+// ---------- exportar excel ----------
+function exportarExcel(){
+  const filas=filasComparacion();
+  const revStock=filas.filter(f=>f.tipo==='stock'&&f.revisado);
+  const coinciden=revStock.filter(f=>f.encontrado===f.saldo).length;
+  const faltan=revStock.filter(f=>f.encontrado<f.saldo);
+  const sobran=revStock.filter(f=>f.encontrado>f.saldo);
+  const extras=filas.filter(f=>f.tipo==='extra');
+  const bajoCritico=revStock.filter(f=>f.stockCrit>0 && f.encontrado<f.stockCrit);
+  const total=PRODUCTS.length;
+  const pendientes=total-revStock.length;
+  const unidadesFaltantes=faltan.reduce((s,f)=>s+(f.saldo-f.encontrado),0);
+  const unidadesSobrantes=sobran.reduce((s,f)=>s+(f.encontrado-f.saldo),0);
+  const avance=total?Math.round(revStock.length/total*100):0;
+  const hoy=new Date().toISOString().slice(0,10);
+
+  const wb=XLSX.utils.book_new();
+
+  // HOJA 1: RESUMEN
+  const r=[];
+  r.push(['CONTROL DE STOCK — BODEGA MANTENCIÓN RANCAGUA — SOSER']);
+  r.push(['Fecha de inventario', hoy]);
+  r.push([]);
+  r.push(['INDICADORES GENERALES (KPI)']);
+  r.push(['Artículos en sistema', total]);
+  r.push(['Artículos contados físicamente', revStock.length]);
+  r.push(['Avance del inventario (%)', avance+'%']);
+  r.push(['Pendientes por contar', pendientes]);
+  r.push([]);
+  r.push(['RESULTADO DEL COTEJO']);
+  r.push(['Coinciden con el sistema', coinciden]);
+  r.push(['Artículos BAJO el sistema (faltantes)', faltan.length]);
+  r.push(['Unidades faltantes en total', unidadesFaltantes]);
+  r.push(['Artículos SOBRE el sistema (sobrantes)', sobran.length]);
+  r.push(['Unidades sobrantes en total', unidadesSobrantes]);
+  r.push(['Artículos bajo stock crítico', bajoCritico.length]);
+  r.push(['Materiales extra (no estaban en sistema)', extras.length]);
+  r.push([]);
+  r.push(['DESGLOSE POR TIPO']);
+  r.push(['Tipo','En sistema','Contados','Coinciden','Faltantes','Sobrantes']);
+  TIPOS.forEach(t=>{
+    const enSys=PRODUCTS.filter(p=>p.tipo===t).length;
+    const rev=revStock.filter(f=>f.tipoArt===t);
+    r.push([limpiaTipo(t), enSys, rev.length,
+      rev.filter(f=>f.encontrado===f.saldo).length,
+      rev.filter(f=>f.encontrado<f.saldo).length,
+      rev.filter(f=>f.encontrado>f.saldo).length]);
+  });
+  r.push([]);
+  r.push(['ARTÍCULOS BAJO EL SISTEMA (revisar)']);
+  if(faltan.length){
+    r.push(['Artículo','Sistema','Físico','Faltan']);
+    faltan.forEach(f=>r.push([f.articulo, f.saldo, f.encontrado, f.saldo-f.encontrado]));
+  }else r.push(['Sin faltantes registrados hasta ahora.']);
+  r.push([]);
+  r.push(['ARTÍCULOS BAJO STOCK CRÍTICO']);
+  if(bajoCritico.length){
+    r.push(['Artículo','Físico','Stock crítico']);
+    bajoCritico.forEach(f=>r.push([f.articulo, f.encontrado, f.stockCrit]));
+  }else r.push(['Ninguno bajo stock crítico.']);
+
+  const ws1=XLSX.utils.aoa_to_sheet(r);
+  ws1['!cols']=[{wch:44},{wch:14},{wch:12},{wch:12},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Resumen');
+
+  // HOJA 2: DETALLE
+  const det=[];
+  PRODUCTS.forEach(p=>{
+    const h=estado.hallazgos['S||'+p.articulo];
+    const fis=h?h.encontrado:'';
+    const dif=h?(h.encontrado-p.saldo):'';
+    let est='Sin contar';
+    if(h){ const d=h.encontrado-p.saldo; est=d===0?'Coincide':(d<0?'Falta '+Math.abs(d):'Sobra '+d);
+      if(p.stockCrit>0 && h.encontrado<p.stockCrit) est+=' (bajo crítico)'; }
+    det.push({
+      Articulo:p.articulo, Codigo:p.cod||'', Tipo:limpiaTipo(p.tipo), Unidad:p.med||'un',
+      StockCritico:p.stockCrit||0, StockSistema:p.saldo, ContadoFisico:fis, Diferencia:dif,
+      Estado:est, Registro:'Sistema', FechaConteo:h?h.fechaRegistro:''
+    });
+  });
+  Object.values(estado.hallazgos).filter(h=>h.tipo_registro==='extra').forEach(h=>{
+    det.push({
+      Articulo:h.articulo, Codigo:'', Tipo:'', Unidad:h.med||'un', StockCritico:0,
+      StockSistema:0, ContadoFisico:h.encontrado, Diferencia:'+'+h.encontrado,
+      Estado:'Material extra', Registro:'Extra', FechaConteo:h.fechaRegistro
+    });
+  });
+  const ws2=XLSX.utils.json_to_sheet(det,{header:['Articulo','Codigo','Tipo','Unidad','StockCritico','StockSistema','ContadoFisico','Diferencia','Estado','Registro','FechaConteo']});
+  ws2['!cols']=[{wch:42},{wch:10},{wch:16},{wch:8},{wch:12},{wch:12},{wch:13},{wch:11},{wch:20},{wch:10},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Detalle');
+
+  XLSX.writeFile(wb, `stock_rancagua_${hoy}.xlsx`);
+}
+
+// ---------- reset ----------
+function resetearTodo(){
+  if(!confirm('¿Borrar todos los conteos registrados? No se puede deshacer.')) return;
+  estado.hallazgos={}; guardarEstado(); renderHallazgosList(); renderComparacion();
+}
+
+document.addEventListener('click',(e)=>{ if(!e.target.closest('.search-box')) resultsBox.classList.remove('show'); });
+
+// ---------- arranque ----------
+cargarEstado();
+renderHallazgosList();
+</script>
+</body>
+</html>
